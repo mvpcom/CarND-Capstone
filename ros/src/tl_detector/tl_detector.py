@@ -130,16 +130,13 @@ class TLDetector(object):
         return distances.index(min(distances))
 
 
-    def project_to_image_plane(self, point_in_world):
+ def project_to_image_plane(self, point_in_world):
         """Project point from 3D world coordinates to 2D camera image location
-
         Args:
             point_in_world (Point): 3D location of a point in the world
-
         Returns:
             x (int): x coordinate of target point in image
             y (int): y coordinate of target point in image
-
         """
 
         fx = self.config['camera_info']['focal_length_x']
@@ -159,12 +156,44 @@ class TLDetector(object):
         except (tf.Exception, tf.LookupException, tf.ConnectivityException):
             rospy.logerr("Failed to find camera to map transform")
 
-        #TODO Use tranform and rotation to calculate 2D position of light in image
+        #WORK IN PROGRESS ... 
+        #Use tranform and rotation to calculate 2D position of light in image
+	    if (trans != None):
+		    #print("rot: ", rot)
+		    #print("trans: ", trans)
+		    px = point_in_world.x
+		    py = point_in_world.y
+		    pz = point_in_world.z
+		    xt = trans[0]
+		    #print("xt: ", xt)
+		    yt = trans[1]
+		    #print("yt: ", yt)
+		    #Override focal lengths with data from site for testing
+		    #fx = 1345.200806
+		    #fy = 1353.838257 
 
-        x = 0
-        y = 0
+		    #Convert rotation vector from quaternion to euler:
+		    euler = tf.transformations.euler_from_quaternion(rot)
+		    sinyaw = math.sin(euler[2])
+		    cosyaw = math.cos(euler[2])
 
-        return (x, y)
+	    	#Rotation followed by translation
+    		Rnt = (
+			    px*cosyaw - py*sinyaw + xt,
+			    px*sinyaw - py*cosyaw + yt,
+			    pz)
+		    #print("Rnt: ", Rnt)
+
+		    #Pinhole camera model w/o distorion
+        	u = int(fx * Rnt[0]/Rnt[2] + image_width/2)
+        	v = int(fy * Rnt[1]/Rnt[2] + image_height/2)
+
+		    print("u: ", u)
+		    print("v: ", v)
+	    else:
+		    u = 0
+		    v = 0	
+        return (u, v)
 
     def get_light_state(self, light):
         """Determines the current color of the traffic light
@@ -183,7 +212,12 @@ class TLDetector(object):
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
 
         x, y = self.project_to_image_plane(light.pose.pose.position)
-
+        
+        #DELETE AFTER TESTING:
+	    #Output image
+	    cv2.circle(cv_image, (x,y), 30, (0,255,255), 2)
+	    mpimg.imsave('test.png', cv_image)
+        
         #TODO use light location to zoom in on traffic light in image
 
         #Get classification
