@@ -130,7 +130,7 @@ class TLDetector(object):
         return distances.index(min(distances))
 
 
- def project_to_image_plane(self, point_in_world):
+def project_to_image_plane(self, point_in_world):
         """Project point from 3D world coordinates to 2D camera image location
         Args:
             point_in_world (Point): 3D location of a point in the world
@@ -156,43 +156,44 @@ class TLDetector(object):
         except (tf.Exception, tf.LookupException, tf.ConnectivityException):
             rospy.logerr("Failed to find camera to map transform")
 
-        #WORK IN PROGRESS ... 
         #Use tranform and rotation to calculate 2D position of light in image
-	    if (trans != None):
-		    #print("rot: ", rot)
-		    #print("trans: ", trans)
-		    px = point_in_world.x
-		    py = point_in_world.y
-		    pz = point_in_world.z
-		    xt = trans[0]
-		    #print("xt: ", xt)
-		    yt = trans[1]
-		    #print("yt: ", yt)
-		    #Override focal lengths with data from site for testing
-		    #fx = 1345.200806
-		    #fy = 1353.838257 
+	if (trans != None):
+		#print("rot: ", rot)
+		#print("trans: ", trans)
+		px = point_in_world.x
+		py = point_in_world.y
+		pz = point_in_world.z
+		xt = trans[0]
+		yt = trans[1]
+		zt = trans[2]
+		#Override focal lengths with data from site for testing
+		#fx = 1345.200806
+		#fy = 1353.838257 
+		#MANUALLY TWEAKED
+		fx = 2574
+		fy = 2744
 
-		    #Convert rotation vector from quaternion to euler:
-		    euler = tf.transformations.euler_from_quaternion(rot)
-		    sinyaw = math.sin(euler[2])
-		    cosyaw = math.cos(euler[2])
+		#Convert rotation vector from quaternion to euler:
+		euler = tf.transformations.euler_from_quaternion(rot)
+		sinyaw = math.sin(euler[2])
+		cosyaw = math.cos(euler[2])
 
-	    	#Rotation followed by translation
-    		Rnt = (
-			    px*cosyaw - py*sinyaw + xt,
-			    px*sinyaw - py*cosyaw + yt,
-			    pz)
-		    #print("Rnt: ", Rnt)
+		#Rotation followed by translation
+		Rnt = (
+			px*cosyaw - py*sinyaw + xt,
+			px*sinyaw + py*cosyaw + yt,
+			pz + zt)
 
-		    #Pinhole camera model w/o distorion
-        	u = int(fx * Rnt[0]/Rnt[2] + image_width/2)
-        	v = int(fy * Rnt[1]/Rnt[2] + image_height/2)
+		#Pinhole camera model w/o distorion
+		#MANUALLY TWEAKED
+        	u = int(fx * -Rnt[1]/Rnt[0] + image_width/2-30)
+        	v = int(fy * -(Rnt[2]-1.0)/Rnt[0] + image_height+50)
 
-		    print("u: ", u)
-		    print("v: ", v)
-	    else:
-		    u = 0
-		    v = 0	
+		#print("u: ", u)
+		#print("v: ", v)
+	else:
+		u = 0
+		v = 0	
         return (u, v)
 
     def get_light_state(self, light):
