@@ -21,6 +21,7 @@ class TLDetector(object):
         config_string = rospy.get_param("/traffic_light_config")
         self.config = yaml.load(config_string)
 
+        self._img_counter = 0
         self.pose = None
         self.waypoints = None
         self.camera_image = None
@@ -218,6 +219,11 @@ class TLDetector(object):
         if light:
             state = self.get_light_state(light)
             state = self.lights[idx_next_light].state  # TODO: stop cheating
+            cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
+            img_file_name = 'red' if state == TrafficLight.RED else 'notred'
+            img_file_name += str(self._img_counter) + '.png'
+            cv2.imwrite(img_file_name, cv_image)
+            self._img_counter += 1
             return self.stop_lines_closest_wp[idx_next_light], state
         return -1, TrafficLight.UNKNOWN
 
