@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import cv2
+import glob
 
 PATH_TO_CKPT = 'frozen_inference_graph.pb'
 TRAFFIC_LIGHT_CLASS_ID = 10
@@ -26,14 +27,13 @@ with detection_graph_od.as_default():
     detection_classes = detection_graph_od.get_tensor_by_name('detection_classes:0')
     num_detections = detection_graph_od.get_tensor_by_name('num_detections:0')
                   
-def detect_light(path_to_image):
+def detect_light(image_np):
     box = None
     im_height = -1
     im_width = -1
     
     with detection_graph_od.as_default():    
         with tf.Session(graph=detection_graph_od) as sess_od:
-            image_np = cv2.imread(path_to_image, 3)
             im_height, im_width, _ = image_np.shape
             image_np_expanded = np.expand_dims(image_np, axis=0)
             (boxes, scores, classes, num) = sess_od.run(
