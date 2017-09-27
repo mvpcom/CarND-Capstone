@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 import cv2
 import glob
+import os
 
 PATH_TO_CKPT = 'frozen_inference_graph.pb'
 TRAFFIC_LIGHT_CLASS_ID = 10
@@ -48,4 +49,18 @@ def detect_light(image_np):
         ymin, xmin, ymax, xmax = box
         box = (xmin * im_width, xmax * im_width, ymin * im_height, ymax * im_height)
     return box
+
+def create_cropped_dataset(dir_to_dataset):
+    dir_cropped = 'cropped_ds'
+    os.mkdir(dir_cropped)
+    for img_path in glob.glob(dir_to_dataset + '/*.png'):
+        image_np = cv2.imread(img_path, 3)
+        light_box = detect_light(image_np)
+        if light_box is not None:
+            print(light_box)
+            left, right, top, bottom = light_box
+            crop_img = image_np[int(round(top)):int(round(bottom)), 
+                                int(round(left)):int(round(right))]
+            img_name = img_path[img_path.rfind('/'):]
+            cv2.imwrite(dir_cropped + img_name, crop_img)
 
