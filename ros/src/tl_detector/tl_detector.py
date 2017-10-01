@@ -130,36 +130,14 @@ class TLDetector(object):
         return distances.index(min(distances))
 
 
-def project_to_image_plane(self, point_in_world):
-        """Project point from 3D world coordinates to 2D camera image location
-        Args:
-            point_in_world (Point): 3D location of a point in the world
-        Returns:
-            x (int): x coordinate of target point in image
-            y (int): y coordinate of target point in image
-        """
-
-        fx = self.config['camera_info']['focal_length_x']
-        fy = self.config['camera_info']['focal_length_y']
-        image_width = self.config['camera_info']['image_width']
-        image_height = self.config['camera_info']['image_height']
-
-        # get transform between pose of camera and world frame
-        trans = None
-        try:
-            now = rospy.Time.now()
-            self.listener.waitForTransform("/base_link",
-                  "/world", now, rospy.Duration(1.0))
-            (trans, rot) = self.listener.lookupTransform("/base_link",
-                  "/world", now)
-
-        except (tf.Exception, tf.LookupException, tf.ConnectivityException):
-            rospy.logerr("Failed to find camera to map transform")
-
-        #Use tranform and rotation to calculate 2D position of light in image
+#Use tranform and rotation to calculate 2D position of light in image
 	if (trans != None):
+		#new: 
+	        #base_point = base_point.point
+	        #print (base_point)
+
 		#print("rot: ", rot)
-		#print("trans: ", trans)
+		print("trans: ", trans)
 		px = point_in_world.x
 		py = point_in_world.y
 		pz = point_in_world.z
@@ -169,9 +147,11 @@ def project_to_image_plane(self, point_in_world):
 		#Override focal lengths with data from site for testing
 		#fx = 1345.200806
 		#fy = 1353.838257 
-		#MANUALLY TWEAKED
 		fx = 2574
 		fy = 2744
+		#traffic light diameter
+		width_true = 1.0
+		height_true = 1.95
 
 		#Convert rotation vector from quaternion to euler:
 		euler = tf.transformations.euler_from_quaternion(rot)
@@ -183,18 +163,34 @@ def project_to_image_plane(self, point_in_world):
 			px*cosyaw - py*sinyaw + xt,
 			px*sinyaw + py*cosyaw + yt,
 			pz + zt)
+		#print("Rnt: ", Rnt)
+		#res = pz + zt
+		#print("pz + zt:", res)
 
 		#Pinhole camera model w/o distorion
-		#MANUALLY TWEAKED
+        	#u = int(fx * Rnt[0]/Rnt[2] + image_width/2)
+        	#v = int(fy * Rnt[1]/Rnt[2] + image_height/2)
+
+		#Testing...
         	u = int(fx * -Rnt[1]/Rnt[0] + image_width/2-30)
         	v = int(fy * -(Rnt[2]-1.0)/Rnt[0] + image_height+50)
+        	#u = int(fx * -Rnt[1]/Rnt[0] + image_width/2)
+        	#v = int(fy * -Rnt[2]/Rnt[0] + image_height/2)
 
-		#print("u: ", u)
-		#print("v: ", v)
+		#Get distance tl to car
+		distance = self.get_2D_euc_dist(self.pose.pose.position, point_in_world)
+		print("distance: %.2f m" % distance)
+		width_apparent = 2*fx*math.atan(width_true/(2*distance))
+		height_apparent = 2*fx*math.atan(height_true/(2*distance))
+		print("width_apparent: %.2f " % width_apparent)
+		print("height_apparent: %.2f " % height_apparent)
+		#Get points for traffic light's bounding box, top left (tl) and bottom right (br) 
+		bbox_tl = (int(u-width_apparent/2), int(v-height_apparent/2))  
+		bbox_br = (int(u+width_apparent/2), int(v+height_apparent/2))
 	else:
-		u = 0
-		v = 0	
-        return (u, v)
+		bbox_tl = (0, 0)
+		bbox_br = (0, 0)	
+        return (bbox_tl, bbox_br)
 
     def get_light_state(self, light):
         """Determines the current color of the traffic light
@@ -212,12 +208,19 @@ def project_to_image_plane(self, point_in_world):
 
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
 
-        x, y = self.project_to_image_plane(light.pose.pose.position)
-        
-        #DELETE AFTER TESTING:
-	    #Output image
-	    cv2.circle(cv_image, (x,y), 30, (0,255,255), 2)
-	    mpimg.imsave('test.png', cv_image)
+	#Convert tl coordinates into pos of tl within img captured by camera
+        bbox_tl, bbox_br = self.project_to_image_plane(light.pose.pose.position)
+
+	#DELETE AFTER TESTING:
+	#Output image
+  	if self.save_counter%5 == 0:
+		#cv2.circle(cv_image, (x,y), 30, (255,0,255), 2)
+		#cv2.circle(cv_image, (x,y), 5, (255,0,255), -1)
+		cv2.rectangle(cv_image, bbox_tl, bbox_br, (255,255,0), 3)
+		#Print every 5th frame	
+		cv2.imwrite('/home/student/imgs/img_{}.jpg'.format(self.save_counter/5), cv_image)
+		print("cv_image exported")
+        self.save_counter += 1
         
         #TODO use light location to zoom in on traffic light in image
 
