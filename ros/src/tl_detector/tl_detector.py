@@ -192,6 +192,36 @@ class TLDetector(object):
 		bbox_br = (0, 0)	
         return (bbox_tl, bbox_br)
 
+
+    def image_resize(self, scr_img, des_width, des_height):
+        """Resizes an image while keeping aspect ratio
+        Args: 
+            scr_img: image input to resize
+            des_width: pixel width of output image 
+            des_height: pixel height of output image
+        Returns:
+            Image: Resized image
+        """	
+        aspect_ratio_width = des_width/des_height
+	#Have to set manually to 0.5 because divison 30/60 apparentaly results in 0
+	aspect_ratio_width = 0.5
+	aspect_ratio_height = des_height/des_width
+	src_height, src_width = scr_img.shape[:2]
+        crop_height = int(src_width/aspect_ratio_width)
+        height_surplus = (src_height-crop_height)/2
+        crop_width = int(src_height/aspect_ratio_height)
+        width_surplus = (src_width-crop_width)/2
+        #Crop image to keep aspect ratio
+        if height_surplus>0:
+            crop_img = scr_img[int(height_surplus):(src_height-math.ceil(height_surplus)), 0:src_width]
+        elif width_surplus>0:
+            crop_img = scr_img[0:src_height, int(width_surplus):(src_width-math.ceil(width_surplus))]
+        else: crop_img = scr_img  
+       
+        #Resize image
+        return cv2.resize(crop_img, (des_width, des_height), 0, 0, interpolation=cv2.INTER_AREA)
+
+
     def get_light_state(self, light):
         """Determines the current color of the traffic light
 
@@ -214,13 +244,24 @@ class TLDetector(object):
 	#DELETE AFTER TESTING:
 	#Output image
   	if self.save_counter%5 == 0:
-		#cv2.circle(cv_image, (x,y), 30, (255,0,255), 2)
-		#cv2.circle(cv_image, (x,y), 5, (255,0,255), -1)
-		cv2.rectangle(cv_image, bbox_tl, bbox_br, (255,255,0), 3)
-		#Print every 5th frame	
-		cv2.imwrite('/home/student/imgs/img_{}.jpg'.format(self.save_counter/5), cv_image)
-		print("cv_image exported")
+            #Draw point and circle
+            #cv2.circle(cv_image, (x,y), 30, (255,0,255), 2)
+            #cv2.circle(cv_image, (x,y), 5, (255,0,255), -1)
+            #Draw bounding box
+            #cv2.rectangle(cv_image, bbox_tl, bbox_br, (255,255,0), 3)
+            #Print every 5th frame	
+            ##cv2.imwrite('/home/student/imgs/img_{}.jpg'.format(self.save_counter/5), cv_image)
+            #print("cv_image exported")
+            #Cutting out traffic lights
+            tl_image = cv_image[bbox_tl[1]:bbox_br[1], bbox_tl[0]:bbox_br[0]]
+            #Resize image
+            tl_image_2 = self.image_resize(tl_image, 30, 60)
+            cv2.imwrite('/home/student/imgs/img_{}.png'.format(self.save_counter/5), tl_image_2)
+            print("tl_image exported") 
         self.save_counter += 1
+	
+	#Cutting out traffic lights
+	# ... actual pipeline goes here! 
         
         #TODO use light location to zoom in on traffic light in image
 
