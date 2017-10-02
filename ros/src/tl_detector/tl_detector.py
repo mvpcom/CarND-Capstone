@@ -53,9 +53,7 @@ class TLDetector(object):
         self.last_wp = -1
         self.state_count = 0
 
-	self.save_counter = 100
-
-        rospy.spin()
+	rospy.spin()
 
     def pose_cb(self, msg):
         self.pose = msg
