@@ -52,6 +52,8 @@ class TLDetector(object):
         self.last_state = TrafficLight.UNKNOWN
         self.last_wp = -1
         self.state_count = 0
+	
+	self.save_counter = 100
 
 	rospy.spin()
 
@@ -226,11 +228,11 @@ class TLDetector(object):
             Image: Resized image
         """	
         aspect_ratio_width = des_width/des_height
-	    #Have to set manually to 0.5 because divison 30/60 apparentaly results in 0
-	    aspect_ratio_width = 0.5
-	    aspect_ratio_height = des_height/des_width
-	    #print("aspect_ratio_width orig: ", aspect_ratio_width)
-	    #print("aspect_ratio_height orig: ", aspect_ratio_height)
+        #Have to set manually to 0.5 because divison 30/60 apparentaly results in 0
+        aspect_ratio_width = 0.5
+        aspect_ratio_height = des_height/des_width
+        #print("aspect_ratio_width orig: ", aspect_ratio_width)
+        #print("aspect_ratio_height orig: ", aspect_ratio_height)
         src_height, src_width = scr_img.shape[:2]
         crop_height = int(src_width/aspect_ratio_width)
         height_surplus = (src_height-crop_height)/2
@@ -289,7 +291,7 @@ class TLDetector(object):
 	tl_state = self.light_classifier.get_classification(tl_image)
 
 	print("status of traffic light: %i" % tl_state)
-    return tl_state
+    	return tl_state
 
     def process_traffic_lights(self):
         """Finds closest visible traffic light, if one exists, and determines its
