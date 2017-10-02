@@ -35,5 +35,5 @@ class Controller(object):
 
     def reset(self):
         self.pid_controller.reset();
-        rospy.logwarn("Resetting PID control")
+        #rospy.logwarn("Resetting PID control")
         return
