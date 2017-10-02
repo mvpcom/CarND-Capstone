@@ -53,10 +53,10 @@ class TLClassifier(object):
         print("TLClassifier: prepare datasets for training")
         # PREPARE DATASETS FOR TRAINING
         X = np.vstack((redlights_features, nonredlights_features)).astype(np.float64)
-	    # Fit a per-column scaler
-	    self.X_scaler = StandardScaler().fit(X)     
-	    # Apply the scaler to X
-	    scaled_X = self.X_scaler.transform(X)
+        # Fit a per-column scaler
+        self.X_scaler = StandardScaler().fit(X)     
+        # Apply the scaler to X
+        scaled_X = self.X_scaler.transform(X)
         # Define the labels vector
         y = np.hstack((np.ones(len(redlights_features)), np.zeros(len(nonredlights_features))))
         # Split up data into randomized training and test sets
