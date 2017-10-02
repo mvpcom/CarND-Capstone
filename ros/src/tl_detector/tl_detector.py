@@ -53,6 +53,8 @@ class TLDetector(object):
         self.last_wp = -1
         self.state_count = 0
 
+	self.save_counter = 100
+
         rospy.spin()
 
     def pose_cb(self, msg):
@@ -82,10 +84,8 @@ class TLDetector(object):
     def image_cb(self, msg):
         """Identifies red lights in the incoming camera image and publishes the index
             of the waypoint closest to the red light's stop line to /traffic_waypoint
-
         Args:
             msg (Image): image from car-mounted camera
-
         """
         self.has_image = True
         self.camera_image = msg
@@ -117,10 +117,8 @@ class TLDetector(object):
             https://en.wikipedia.org/wiki/Closest_pair_of_points_problem
         Args:
             pose (Pose): position to match a waypoint to
-
         Returns:
             int: index of the closest waypoint in self.waypoints
-
         """
         distances = []
         pos = pose.position
@@ -132,14 +130,11 @@ class TLDetector(object):
 
     def project_to_image_plane(self, point_in_world):
         """Project point from 3D world coordinates to 2D camera image location
-
         Args:
             point_in_world (Point): 3D location of a point in the world
-
         Returns:
             x (int): x coordinate of target point in image
             y (int): y coordinate of target point in image
-
         """
 
         fx = self.config['camera_info']['focal_length_x']
@@ -155,48 +150,155 @@ class TLDetector(object):
                   "/world", now, rospy.Duration(1.0))
             (trans, rot) = self.listener.lookupTransform("/base_link",
                   "/world", now)
+            #Try new:         
+            #base_point = self.listener.transformPoint("/base_link", point_in_world);
 
         except (tf.Exception, tf.LookupException, tf.ConnectivityException):
             rospy.logerr("Failed to find camera to map transform")
 
-        #TODO Use tranform and rotation to calculate 2D position of light in image
+        #Use tranform and rotation to calculate 2D position of light in image
+	if (trans != None):
+		#new: 
+	        #base_point = base_point.point
+	        #print (base_point)
 
-        x = 0
-        y = 0
+		#print("rot: ", rot)
+		#print("trans: ", trans)
+		px = point_in_world.x
+		py = point_in_world.y
+		pz = point_in_world.z
+		xt = trans[0]
+		yt = trans[1]
+		zt = trans[2]
+		#Override focal lengths with data from site for testing
+		#fx = 1345.200806
+		#fy = 1353.838257
+		#Override focal lenghts with manually tweaked values from Udacity forum discussion  
+		fx = 2574
+		fy = 2744
+		#Traffic light's true size
+		width_true = 1.0
+		height_true = 1.95
 
-        return (x, y)
+		#Convert rotation vector from quaternion to euler:
+		euler = tf.transformations.euler_from_quaternion(rot)
+		sinyaw = math.sin(euler[2])
+		cosyaw = math.cos(euler[2])
+
+		#Rotation followed by translation
+		Rnt = (
+			px*cosyaw - py*sinyaw + xt,
+			px*sinyaw + py*cosyaw + yt,
+			pz + zt)
+		#print("Rnt: ", Rnt)
+		#res = pz + zt
+		#print("pz + zt:", res)
+
+		#Pinhole camera model w/o distorion
+		#Tweaked:
+        	u = int(fx * -Rnt[1]/Rnt[0] + image_width/2-30)
+        	v = int(fy * -(Rnt[2]-1.0)/Rnt[0] + image_height+50)
+		#Untweaked:
+        	#u = int(fx * -Rnt[1]/Rnt[0] + image_width/2)
+        	#v = int(fy * -Rnt[2]/Rnt[0] + image_height/2)
+
+		#Get distance tl to car
+		distance = self.get_2D_euc_dist(self.pose.pose.position, point_in_world)
+		#print("distance: %.2f m" % distance)
+		width_apparent = 2*fx*math.atan(width_true/(2*distance))
+		height_apparent = 2*fx*math.atan(height_true/(2*distance))
+		#print("width_apparent: %.2f " % width_apparent)
+		#print("height_apparent: %.2f " % height_apparent)
+		#Get points for traffic light's bounding box, top left (tl) and bottom right (br) 
+		bbox_tl = (int(u-width_apparent/2), int(v-height_apparent/2))  
+		bbox_br = (int(u+width_apparent/2), int(v+height_apparent/2))
+	else:
+		bbox_tl = (0, 0)
+		bbox_br = (0, 0)	
+        return (bbox_tl, bbox_br)
+
+
+    def image_resize(self, scr_img, des_width, des_height):
+        """Resizes an image while keeping aspect ratio
+        Args: 
+            scr_img: image input to resize
+            des_width: pixel width of output image 
+            des_height: pixel height of output image
+        Returns:
+            Image: Resized image
+        """	
+        aspect_ratio_width = des_width/des_height
+	    #Have to set manually to 0.5 because divison 30/60 apparentaly results in 0
+	    aspect_ratio_width = 0.5
+	    aspect_ratio_height = des_height/des_width
+	    #print("aspect_ratio_width orig: ", aspect_ratio_width)
+	    #print("aspect_ratio_height orig: ", aspect_ratio_height)
+        src_height, src_width = scr_img.shape[:2]
+        crop_height = int(src_width/aspect_ratio_width)
+        height_surplus = (src_height-crop_height)/2
+        crop_width = int(src_height/aspect_ratio_height)
+        width_surplus = (src_width-crop_width)/2
+        #Crop image to keep aspect ratio
+        if height_surplus>0:
+            crop_img = scr_img[int(height_surplus):(src_height-math.ceil(height_surplus)), 0:src_width]
+        elif width_surplus>0:
+            crop_img = scr_img[0:src_height, int(width_surplus):(src_width-math.ceil(width_surplus))]
+        else: crop_img = scr_img  
+
+        #Resize image
+        return cv2.resize(crop_img, (des_width, des_height), 0, 0, interpolation=cv2.INTER_AREA)
+
 
     def get_light_state(self, light):
         """Determines the current color of the traffic light
-
         Args:
             light (TrafficLight): light to classify
-
         Returns:
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
-
         """
         if(not self.has_image):
             self.prev_light_loc = None
             return False
-
+	
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
+	
+	#Convert tl coordinates into pos of tl within img captured by camera
+        bbox_tl, bbox_br = self.project_to_image_plane(light.pose.pose.position)
 
-        x, y = self.project_to_image_plane(light.pose.pose.position)
+	#TESTING the extraction of traffic light images:
+	testing = False
+  	if self.save_counter%5 == 0 and testing:
+            #Draw point and circle
+            #cv2.circle(cv_image, (x,y), 30, (255,255,0), 2)
+            #cv2.circle(cv_image, (x,y), 5, (255,255,0), -1)
+            #Draw bounding box
+            #cv2.rectangle(cv_image, bbox_tl, bbox_br, (255,255,0), 3)
+            #Save every 5th frame	
+            ##cv2.imwrite('/home/student/imgs/img_{}.jpg'.format(self.save_counter/5), cv_image)
+            #print("cv_image exported")
+            #Cutting out traffic lights
+            tl_image_orig = cv_image[bbox_tl[1]:bbox_br[1], bbox_tl[0]:bbox_br[0]]
+            #Resize and save image
+            tl_image = self.image_resize(tl_image_orig, 30, 60)
+            cv2.imwrite('/home/student/imgs/img_{}.png'.format(self.save_counter/5), tl_image)
+            print("tl_image exported")     
+        
+	#Use light location to zoom in on traffic light in image
+	tl_image_orig = cv_image[bbox_tl[1]:bbox_br[1], bbox_tl[0]:bbox_br[0]]
+	#Resize image
+	tl_image = self.image_resize(tl_image_orig, 30, 60)   
+	#Get classification
+	tl_state = self.light_classifier.get_classification(tl_image)
 
-        #TODO use light location to zoom in on traffic light in image
-
-        #Get classification
-        return self.light_classifier.get_classification(cv_image)
+	print("status of traffic light: %i" % tl_state)
+    return tl_state
 
     def process_traffic_lights(self):
         """Finds closest visible traffic light, if one exists, and determines its
             location and color
-
         Returns:
             int: index of waypoint closes to the upcoming stop line for a traffic light (-1 if none exists)
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
-
         """
         VISIBLE_THRESHOLD = 70
         light = None
