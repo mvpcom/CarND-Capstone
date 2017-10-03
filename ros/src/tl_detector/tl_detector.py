@@ -262,12 +262,12 @@ class TLDetector(object):
 	
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
 	
-	#Convert tl coordinates into pos of tl within img captured by camera
+        #Convert tl coordinates into pos of tl within img captured by camera
         bbox_tl, bbox_br = self.project_to_image_plane(light.pose.pose.position)
 
-	#TESTING the extraction of traffic light images:
-	testing = False
-  	if self.save_counter%5 == 0 and testing:
+        #TESTING the extraction of traffic light images:
+        testing = False
+        if self.save_counter%5 == 0 and testing:
             #Draw point and circle
             #cv2.circle(cv_image, (x,y), 30, (255,255,0), 2)
             #cv2.circle(cv_image, (x,y), 5, (255,255,0), -1)
@@ -283,14 +283,14 @@ class TLDetector(object):
             cv2.imwrite('/home/student/imgs/img_{}.png'.format(self.save_counter/5), tl_image)
             print("tl_image exported")     
         
-	#Use light location to zoom in on traffic light in image
-	tl_image_orig = cv_image[bbox_tl[1]:bbox_br[1], bbox_tl[0]:bbox_br[0]]
-	#Resize image
-	tl_image = self.image_resize(tl_image_orig, 30, 60)   
-	#Get classification
-	tl_state = self.light_classifier.get_classification(tl_image)
+    	#Use light location to zoom in on traffic light in image
+        tl_image_orig = cv_image[bbox_tl[1]:bbox_br[1], bbox_tl[0]:bbox_br[0]]
+        #Resize image
+        tl_image = self.image_resize(tl_image_orig, 30, 60)   
+        #Get classification
+        tl_state = self.light_classifier.get_classification(tl_image)
 
-	print("status of traffic light: %i" % tl_state)
+        print("status of traffic light: %i" % tl_state)
     	return tl_state
 
     def process_traffic_lights(self):
@@ -319,7 +319,6 @@ class TLDetector(object):
         
         if light:
             state = self.get_light_state(light)
-            state = self.lights[idx_next_light].state  # TODO: stop cheating
             return self.stop_lines_closest_wp[idx_next_light], state
         return -1, TrafficLight.UNKNOWN
 
