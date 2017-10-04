@@ -52,10 +52,10 @@ class TLDetector(object):
         self.last_state = TrafficLight.UNKNOWN
         self.last_wp = -1
         self.state_count = 0
-	
-	self.save_counter = 100
 
-	rospy.spin()
+        self.save_counter = 100
+
+        rospy.spin()
 
     def pose_cb(self, msg):
         self.pose = msg
@@ -68,11 +68,11 @@ class TLDetector(object):
         self.lights = msg.lights
         if (self.waypoints is not None) and (len(self.stop_lines) == 0):
             stops = self.config['stop_line_positions']
-            
+
             for light in self.lights:
                 light_pose = light.pose.pose
                 self.lights_closest_wp.append(self.get_closest_waypoint(light_pose))
-                
+
             for stop in stops:
                 stop_line_pose = Pose()
                 stop_line_pose.position = Point()
@@ -108,10 +108,10 @@ class TLDetector(object):
         else:
             self.upcoming_red_light_pub.publish(Int32(self.last_wp))
         self.state_count += 1
-    
+
     def get_2D_euc_dist(self, pos1, pos2):
         return math.sqrt((pos1.x-pos2.x)**2 + (pos1.y-pos2.y)**2)
-    
+
     def get_closest_waypoint(self, pose):
         """Identifies the closest path waypoint to the given position
             https://en.wikipedia.org/wiki/Closest_pair_of_points_problem
@@ -157,64 +157,64 @@ class TLDetector(object):
             rospy.logerr("Failed to find camera to map transform")
 
         #Use tranform and rotation to calculate 2D position of light in image
-	if (trans != None):
-		#new: 
-	        #base_point = base_point.point
-	        #print (base_point)
+        if (trans != None):
+        #new: 
+            #base_point = base_point.point
+            #print (base_point)
 
-		#print("rot: ", rot)
-		#print("trans: ", trans)
-		px = point_in_world.x
-		py = point_in_world.y
-		pz = point_in_world.z
-		xt = trans[0]
-		yt = trans[1]
-		zt = trans[2]
-		#Override focal lengths with data from site for testing
-		#fx = 1345.200806
-		#fy = 1353.838257
-		#Override focal lenghts with manually tweaked values from Udacity forum discussion  
-		fx = 2574
-		fy = 2744
-		#Traffic light's true size
-		width_true = 1.0
-		height_true = 1.95
+            #print("rot: ", rot)
+            #print("trans: ", trans)
+            px = point_in_world.x
+            py = point_in_world.y
+            pz = point_in_world.z
+            xt = trans[0]
+            yt = trans[1]
+            zt = trans[2]
+            #Override focal lengths with data from site for testing
+            #fx = 1345.200806
+            #fy = 1353.838257
+            #Override focal lenghts with manually tweaked values from Udacity forum discussion  
+            fx = 2574
+            fy = 2744
+            #Traffic light's true size
+            width_true = 1.0
+            height_true = 1.95
 
-		#Convert rotation vector from quaternion to euler:
-		euler = tf.transformations.euler_from_quaternion(rot)
-		sinyaw = math.sin(euler[2])
-		cosyaw = math.cos(euler[2])
+            #Convert rotation vector from quaternion to euler:
+            euler = tf.transformations.euler_from_quaternion(rot)
+            sinyaw = math.sin(euler[2])
+            cosyaw = math.cos(euler[2])
 
-		#Rotation followed by translation
-		Rnt = (
-			px*cosyaw - py*sinyaw + xt,
-			px*sinyaw + py*cosyaw + yt,
-			pz + zt)
-		#print("Rnt: ", Rnt)
-		#res = pz + zt
-		#print("pz + zt:", res)
+            #Rotation followed by translation
+            Rnt = (
+                    px*cosyaw - py*sinyaw + xt,
+                    px*sinyaw + py*cosyaw + yt,
+                    pz + zt)
+            #print("Rnt: ", Rnt)
+            #res = pz + zt
+            #print("pz + zt:", res)
 
-		#Pinhole camera model w/o distorion
-		#Tweaked:
-        	u = int(fx * -Rnt[1]/Rnt[0] + image_width/2-30)
-        	v = int(fy * -(Rnt[2]-1.0)/Rnt[0] + image_height+50)
-		#Untweaked:
-        	#u = int(fx * -Rnt[1]/Rnt[0] + image_width/2)
-        	#v = int(fy * -Rnt[2]/Rnt[0] + image_height/2)
+            #Pinhole camera model w/o distorion
+            #Tweaked:
+            u = int(fx * -Rnt[1]/Rnt[0] + image_width/2-30)
+            v = int(fy * -(Rnt[2]-1.0)/Rnt[0] + image_height+50)
+            #Untweaked:
+            #u = int(fx * -Rnt[1]/Rnt[0] + image_width/2)
+            #v = int(fy * -Rnt[2]/Rnt[0] + image_height/2)
 
-		#Get distance tl to car
-		distance = self.get_2D_euc_dist(self.pose.pose.position, point_in_world)
-		#print("distance: %.2f m" % distance)
-		width_apparent = 2*fx*math.atan(width_true/(2*distance))
-		height_apparent = 2*fx*math.atan(height_true/(2*distance))
-		#print("width_apparent: %.2f " % width_apparent)
-		#print("height_apparent: %.2f " % height_apparent)
-		#Get points for traffic light's bounding box, top left (tl) and bottom right (br) 
-		bbox_tl = (int(u-width_apparent/2), int(v-height_apparent/2))  
-		bbox_br = (int(u+width_apparent/2), int(v+height_apparent/2))
-	else:
-		bbox_tl = (0, 0)
-		bbox_br = (0, 0)	
+            #Get distance tl to car
+            distance = self.get_2D_euc_dist(self.pose.pose.position, point_in_world)
+            #print("distance: %.2f m" % distance)
+            width_apparent = 2*fx*math.atan(width_true/(2*distance))
+            height_apparent = 2*fx*math.atan(height_true/(2*distance))
+            #print("width_apparent: %.2f " % width_apparent)
+            #print("height_apparent: %.2f " % height_apparent)
+            #Get points for traffic light's bounding box, top left (tl) and bottom right (br) 
+            bbox_tl = (int(u-width_apparent/2), int(v-height_apparent/2))  
+            bbox_br = (int(u+width_apparent/2), int(v+height_apparent/2))
+        else:
+            bbox_tl = (0, 0)
+            bbox_br = (0, 0)	
         return (bbox_tl, bbox_br)
 
 
@@ -259,9 +259,9 @@ class TLDetector(object):
         if(not self.has_image):
             self.prev_light_loc = None
             return False
-	
+
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
-	
+
         #Convert tl coordinates into pos of tl within img captured by camera
         bbox_tl, bbox_br = self.project_to_image_plane(light.pose.pose.position)
 
@@ -282,8 +282,8 @@ class TLDetector(object):
             tl_image = self.image_resize(tl_image_orig, 30, 60)
             cv2.imwrite('/home/student/imgs/img_{}.png'.format(self.save_counter/5), tl_image)
             print("tl_image exported")     
-        
-    	#Use light location to zoom in on traffic light in image
+
+        #Use light location to zoom in on traffic light in image
         tl_image_orig = cv_image[bbox_tl[1]:bbox_br[1], bbox_tl[0]:bbox_br[0]]
         #Resize image
         tl_image = self.image_resize(tl_image_orig, 30, 60)   
@@ -291,7 +291,7 @@ class TLDetector(object):
         tl_state = self.light_classifier.get_classification(tl_image)
 
         print("status of traffic light: %i" % tl_state)
-    	return tl_state
+        return tl_state
 
     def process_traffic_lights(self):
         """Finds closest visible traffic light, if one exists, and determines its
@@ -303,7 +303,7 @@ class TLDetector(object):
         VISIBLE_THRESHOLD = 70
         light = None
         idx_next_light = -1
-        
+
         if self.pose and self.stop_lines:
             car_wp = self.get_closest_waypoint(self.pose.pose)
             bigger_wp = [wp for wp in self.stop_lines_closest_wp 
@@ -316,7 +316,7 @@ class TLDetector(object):
             dist_to_next_stop = self.get_2D_euc_dist(self.pose.pose.position, next_stop_pos)
             if dist_to_next_stop <= VISIBLE_THRESHOLD:
                 light = self.lights[idx_next_light]
-        
+
         if light:
             state = self.get_light_state(light)
             return self.stop_lines_closest_wp[idx_next_light], state
