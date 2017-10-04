@@ -1,6 +1,6 @@
 from styx_msgs.msg import TrafficLight
 from keras.models import load_model
-import tensorflow as tf
+import tensorflow as tef
 import cv2
 import numpy as np
 
@@ -8,7 +8,7 @@ class TLClassifier(object):
     def __init__(self):
         self.model = load_model('light_classification/model.h5')
         self.model._make_predict_function()
-        self.graph = tf.get_default_graph()
+        self.graph = tef.get_default_graph()
 
     def get_classification(self, image):
         """Determines the color of the traffic light in the image
