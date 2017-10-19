@@ -45,6 +45,7 @@ class DBWNode(object):
         self.accel_limit = rospy.get_param('~accel_limit', 1.)
         self.wheel_radius = rospy.get_param('~wheel_radius', 0.2413)
 
+
         wheel_base = rospy.get_param('~wheel_base', 2.8498)
         steer_ratio = rospy.get_param('~steer_ratio', 14.8)
         max_lat_accel = rospy.get_param('~max_lat_accel', 3.)
@@ -68,6 +69,10 @@ class DBWNode(object):
 
         # drive by wire enables set to False in the beginning
         self.dbw_enabled = False
+        self.prev_dbw_enabled = False
+        self.dbw_toggle_tstamp = rospy.Time.now()
+        self.rest_period = 2  # wait 2 seconds before start moving the car
+        self.stop_car = True
 
         # desired velocity
         self.des_linear_velocity = 0.0
@@ -117,6 +122,12 @@ class DBWNode(object):
 
     def dbw_enabled_cb(self, msg):
         self.dbw_enabled = msg.data
+        if self.dbw_enabled != self.prev_dbw_enabled:
+            self.stop_car = True
+            self.dbw_toggle_tstamp = rospy.Time.now()
+            rospy.loginfo("dbw toggled !!!")
+
+        self.prev_dbw_enabled = self.dbw_enabled
         rospy.loginfo("Update self.dbw_enabled=%s", self.dbw_enabled)
         return
 
@@ -187,11 +198,20 @@ class DBWNode(object):
             # after getting the acceleration from PID, filter it using low_pass
             throttle = self.lp_filter.filt(throttle)
 
+            if self.stop_car:
+                brake = self.vehicle_mass * 1 * self.wheel_radius
+                throttle = 0.0
+
             # use yaw_controller for steering
             # TODO: try using a low pass filter for angular velocity to smooth the steering
             steer = self.yaw_control.get_steering(self.des_linear_velocity, self.des_angular_velocity, self.cur_linear_velocity)
 
             if self.dbw_enabled:
+                # rospy.loginfo("elapsed time = %s", (rospy.Time.now() - self.dbw_toggle_tstamp).secs)
+                if (rospy.Time.now()-self.dbw_toggle_tstamp).secs >= self.rest_period:
+                    if self.stop_car:
+                        rospy.loginfo("Rest period elapsed. Car is allowed to move now!")
+                        self.stop_car = False
                 self.publish(throttle, brake, steer)
                 #rospy.loginfo("ref_linear_vel = %s \tcur_linear_vel = %s \tthrottle = %s \tbrake = %s \t",
                 #              self.des_linear_velocity, self.cur_linear_velocity, throttle, brake)

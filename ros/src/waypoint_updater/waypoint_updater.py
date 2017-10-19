@@ -26,7 +26,7 @@ TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 
 LOOKAHEAD_WPS = 50  # Number of waypoints to publish
 WP_UPDATE_RATE = 10; # processing frequency
-REF_VEL = 4.47
+REF_VEL = 3 #4.47
 def to_deg(angle):
     return angle*180.0/math.pi
 
