@@ -182,10 +182,9 @@ class DBWNode(object):
                     brake = self.vehicle_mass * braking * self.wheel_radius
                 else:
                     brake = 0
-
-                throttle = 0
-                self.throttle_control.reset()
-                self.prev_throttle = 0
+                    throttle = 0
+                    self.throttle_control.reset()
+                    self.prev_throttle = 0
             else:
                 brake = 0
                 self.prev_braking = 0
@@ -201,6 +200,8 @@ class DBWNode(object):
             if self.stop_car:
                 brake = self.vehicle_mass * 1 * self.wheel_radius
                 throttle = 0.0
+                self.prev_throttle = 0.0
+                self.prev_braking = 0
 
             # use yaw_controller for steering
             # TODO: try using a low pass filter for angular velocity to smooth the steering
@@ -212,6 +213,8 @@ class DBWNode(object):
                     if self.stop_car:
                         rospy.loginfo("Rest period elapsed. Car is allowed to move now!")
                         self.stop_car = False
+                        self.throttle_control.reset()
+
                 self.publish(throttle, brake, steer)
                 #rospy.loginfo("ref_linear_vel = %s \tcur_linear_vel = %s \tthrottle = %s \tbrake = %s \t",
                 #              self.des_linear_velocity, self.cur_linear_velocity, throttle, brake)
